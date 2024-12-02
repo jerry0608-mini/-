@@ -1,0 +1,5 @@
+Cycle 1: lw $2, 8($0)
+Cycle 2: lw $3, 16($0)
+Cycle 3: beq $2, $3, 1
+Cycle 4: add $4, $2, $3
+Cycle 5: sw $4, 24($0)
