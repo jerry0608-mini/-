@@ -35,7 +35,23 @@ class Pipeline:
             "MemRead": "X", "MemWrite": "X", "Branch": "X", "ALUOp": "X"
         }
 
-        if op == "lw":
+        if op in ["add", "sub"]:
+            try:
+                rd = int(parts[1].replace(",", "").replace("$", ""))
+                rs = int(parts[2].replace(",", "").replace("$", ""))
+                rt = int(parts[3].replace(",", "").replace("$", ""))
+                # 設置控制信號
+                control_signals.update({
+                    "RegDst": "1", "ALUSrc": "0", "MemtoReg": "0", "RegWrite": "1",
+                    "MemRead": "0", "MemWrite": "0", "Branch": "0", "ALUOp": "10"
+                })
+                print(f"Cycle {self.cycle + 1}: Decoding instruction: {instruction} -> op: {op}, rd: {rd}, rs: {rs}, rt: {rt}")
+                return {"op": op, "rd": rd, "rs": rs, "rt": rt, "control": control_signals}
+            except (ValueError, IndexError) as e:
+                print(f"Invalid instruction format: {instruction}")
+                raise e
+
+        elif op == "lw":
             match = re.match(r'\$(\d+),\s*(\d+)\(\$(\d+)\)', parts[1] + " " + parts[2])
             if match:
                 reg = int(match.group(1))
@@ -68,22 +84,6 @@ class Pipeline:
             else:
                 print(f"Invalid instruction format: {instruction}")
                 raise ValueError(f"Invalid instruction format: {instruction}")
-
-        elif op == "add":
-            try:
-                rd = int(parts[1].replace(",", "").replace("$", ""))
-                rs = int(parts[2].replace(",", "").replace("$", ""))
-                rt = int(parts[3].replace(",", "").replace("$", ""))
-                # 設置控制信號
-                control_signals.update({
-                    "RegDst": "1", "ALUSrc": "0", "MemtoReg": "0", "RegWrite": "1",
-                    "MemRead": "0", "MemWrite": "0", "Branch": "0", "ALUOp": "10"
-                })
-                print(f"Cycle {self.cycle + 1}: Decoding instruction: {instruction} -> op: {op}, rd: {rd}, rs: {rs}, rt: {rt}")
-                return {"op": op, "rd": rd, "rs": rs, "rt": rt, "control": control_signals}
-            except (ValueError, IndexError) as e:
-                print(f"Invalid instruction format: {instruction}")
-                raise e
 
         elif op == "beq":
             try:
@@ -129,6 +129,7 @@ class Pipeline:
             print(f"Cycle {self.cycle + 1}: Executing {op.upper()} -> Address: {address}, Control Signals: {control}")
             return {"op": op, "address": address, "reg": decoded_instruction.get("reg"), "control": control}
 
+    # 確保 `memory_access` 和 `write_back` 方法的代碼不變，並可以正確處理所有指令的控制信號。
     def memory_access(self, executed_result):
         """模擬 MEM 階段"""
         if not executed_result:

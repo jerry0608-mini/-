@@ -13,13 +13,13 @@ def simulate_pipeline(instructions):
 
 def main():
     # 讀取輸入檔案
-    instructions = load_instructions("test3.txt")
+    instructions = load_instructions("test6.txt")
     print("Loaded Instructions:", instructions)
     # 執行模擬
     pipeline_results = simulate_pipeline(instructions)
     # 輸出結果
-    save_output(pipeline_results, "outputs/result_test3.txt")
-    print("Results saved to outputs/result_test3.txt")
+    save_output(pipeline_results, "outputs/result_test6.txt")
+    print("Results saved to outputs/result_test6.txt")
 
 if __name__ == "__main__":
     main()

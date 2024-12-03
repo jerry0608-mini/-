@@ -1,0 +1,5 @@
+Cycle 1: sub $1, $4, $4
+Cycle 2: beq $1, $2, 2
+Cycle 3: add $2, $3, $3
+Cycle 4: lw $1, 4($0)
+Cycle 5: add $4, $5, $6
