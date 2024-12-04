@@ -8,6 +8,28 @@ def simulate_pipeline(instructions):
         pipeline.step(instruction)
         results.append(f"Cycle {pipeline.cycle}: {instruction}")
     return results
+    
+'''   當stall後，後面的也會跟著停1個cycle
+def simulate_pipeline(instructions):
+    pipeline = Pipeline()
+    results = []
+    index = 0
+
+    while any([pipeline.IF_ID, pipeline.ID_EX, pipeline.EX_MEM, pipeline.MEM_WB]) or index < len(instructions):
+        if not pipeline.detect_hazard_lw_stall() and index < len(instructions):
+            current_instruction = instructions[index]
+            index += 1
+        else:
+            current_instruction = None  # 插入 NOP
+    
+        pipeline.step(current_instruction)
+    # 記錄結果
+        if current_instruction:
+           results.append(f"Cycle {pipeline.cycle}: {current_instruction}")
+        else:
+           results.append(f"Cycle {pipeline.cycle}: (No new instruction)")
+    return results
+'''    
 
 def main():
     # 讀取輸入指令檔案
