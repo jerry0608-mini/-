@@ -21,7 +21,6 @@ def simulate_pipeline(instructions):
             index += 1
         else:
             current_instruction = None  # 插入 NOP
-    
         pipeline.step(current_instruction)
     # 記錄結果
         if current_instruction:
