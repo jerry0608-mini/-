@@ -91,7 +91,21 @@ class Pipeline:
             result = mem_result.get("data", mem_result.get("result"))
             self.registers[mem_result["rd"]] = result
             print(f"Cycle {self.cycle + 1}: Write Back -> Register[{mem_result['rd']}] = {result}")
-
+            
+    def detect_hazard_lw_stall(self):
+        """檢測lw的datahazard"""
+        if self.ID_EX and self.ID_EX["op"] == "lw":
+           rd = self.ID_EX["reg"] 
+           if self.IF_ID:
+              instr = self.IF_ID.split()
+              if instr[0] in ["add", "sub", "beq"]:
+                 rs = int(instr[2].replace(",", "").replace("$", ""))
+                 rt = int(instr[3].replace(",", "").replace("$", ""))
+                 if rd in [rs, rt]:
+                    print(f"Data Hazard detected: Stalling for lw $r{rd}")
+                    return True
+        return False
+        
     def step(self, instruction):
         """模擬一步 Pipeline"""
         if self.MEM_WB:
@@ -105,3 +119,57 @@ class Pipeline:
         self.IF_ID = self.fetch(instruction)
 
         self.cycle += 1
+
+'''解決 Data Hazard 的 stall，forward還沒用好
+
+    def step(self,  instruction):
+        """模擬一步 Pipeline"""
+        if not (self.IF_ID or self.ID_EX or self.EX_MEM or self.MEM_WB or instruction):
+           return False
+        
+    # 插入stall
+        if self.detect_hazard_lw_stall():
+            if self.MEM_WB:
+               self.write_back(self.MEM_WB)
+               self.MEM_WB = None
+            if self.EX_MEM:
+               self.MEM_WB = self.memory_access(self.EX_MEM)
+               self.EX_MEM = None
+            if self.ID_EX:
+               self.EX_MEM = self.execute(self.ID_EX)
+               self.ID_EX = None
+
+            self.ID_EX = None
+            print(f"Cycle {self.cycle + 1}: Stalling pipeline")
+            
+        else: 
+            if self.MEM_WB:
+               self.write_back(self.MEM_WB)
+               self.MEM_WB = None
+            if self.EX_MEM:
+               self.MEM_WB = self.memory_access(self.EX_MEM)
+               self.EX_MEM = None
+            if self.ID_EX:
+               self.EX_MEM = self.execute(self.ID_EX)
+               self.ID_EX = None
+            if self.IF_ID:
+               self.ID_EX = self.decode(self.IF_ID)
+               self.IF_ID = None
+
+        # 如果檢測data hazard，Fetch 暫停，不更新 IF/ID
+        if not self.detect_hazard_lw_stall() and instruction:
+           self.IF_ID = self.fetch(instruction)
+
+        # 更新 Cycle
+        self.cycle += 1
+        self.print_pipeline_state()
+
+    def print_pipeline_state(self):
+        """打印每個 Cycle 中的 Pipeline 狀態，包括控制信號"""
+        print(f"Cycle {self.cycle}:")
+        print(f"  IF/ID: {self.IF_ID}")
+        print(f"  ID/EX: {self.ID_EX}")
+        print(f"  EX/MEM: {self.EX_MEM}")
+        print(f"  MEM/WB: {self.MEM_WB}")
+        print()
+'''
