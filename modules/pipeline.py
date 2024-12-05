@@ -12,7 +12,9 @@ class Pipeline:
         self.memory = [1] * 32
 
         self.cycle = 0
-
+        self.ForwardA = "00"
+        self.ForwardB = "00"
+        
     def fetch(self, instruction):
         """模擬 IF 階段"""
         if instruction:
@@ -73,6 +75,68 @@ class Pipeline:
         # 其他指令執行邏輯可類似擴展
         ...
 
+'''forwarding 目前用好add sub
+    def execute(self, decoded_instruction):
+        """模擬 EX 階段"""
+        if not decoded_instruction:
+            return None
+
+        op = decoded_instruction["op"]
+        control = decoded_instruction["control"]
+
+        # 取得 Forwarding 信號
+        ForwardA, ForwardB = self.detect_forwarding_signals()
+
+
+        if op == "add":
+            
+            if ForwardA == "00":
+               rs_value=self.registers[decoded_instruction["rs"]]
+            elif ForwardA == "10":
+               rs_value=self.EX_MEM["result"]
+            else:
+               rs_value=self.MEM_WB["result"]
+
+            if ForwardB == "00":
+                rt_value =self.registers[decoded_instruction["rt"]]
+            elif ForwardB == "10":
+                rt_value=self.EX_MEM["result"]
+            else:
+                rt_value=self.MEM_WB["result"]
+
+            result = rs_value + rt_value
+            print(f"Cycle {self.cycle + 1}: Executing ADD -> Result: {result}, Control Signals: {control}")
+            return {"op": op, "result": result, "rd": decoded_instruction["rd"], "control": control}
+        
+        elif op == "sub":
+            if ForwardA == "00":
+               rs_value=self.registers[decoded_instruction["rs"]]
+            elif ForwardA == "10":
+               rs_value=self.EX_MEM["result"]
+            else:
+               rs_value=self.MEM_WB["data"]
+
+            if ForwardB == "00":
+                rt_value =self.registers[decoded_instruction["rt"]]
+            elif ForwardB == "10":
+                rt_value=self.EX_MEM["result"]
+            else:
+                rt_value=self.MEM_WB["data"]
+
+            result = rs_value - rt_value
+            result = self.registers[decoded_instruction["rs"]] - self.registers[decoded_instruction["rt"]]
+            print(f"Cycle {self.cycle + 1}: Executing SUB -> Result: {result}, Control Signals: {control}")
+            return {"op": op, "result": result, "rd": decoded_instruction["rd"], "control": control}
+        elif op == "beq":
+            taken = self.registers[decoded_instruction["rs"]] == self.registers[decoded_instruction["rt"]]
+            print(f"Cycle {self.cycle + 1}: Executing BEQ -> Taken: {taken}, Control Signals: {control}")
+            return {"op": op, "taken": taken, "control": control}
+        elif op in ["lw", "sw"]:
+            address = self.registers[decoded_instruction["base"]] + decoded_instruction["offset"]
+            print(f"Cycle {self.cycle + 1}: Executing {op.upper()} -> Address: {address}, Control Signals: {control}")
+            return {"op": op, "address": address, "reg": decoded_instruction.get("reg"), "control": control}
+'''
+    
     def memory_access(self, executed_result):
         """模擬 MEM 階段"""
         if not executed_result:
@@ -91,7 +155,29 @@ class Pipeline:
             result = mem_result.get("data", mem_result.get("result"))
             self.registers[mem_result["rd"]] = result
             print(f"Cycle {self.cycle + 1}: Write Back -> Register[{mem_result['rd']}] = {result}")
-            
+
+
+    def detect_forwarding_signals(self):
+        """檢測是否需要 Forwarding 並設置 ForwardA 和 ForwardB """
+        ForwardA = "00"  # 預設為00
+        ForwardB = "00"
+
+        # EX Hazard
+        if self.EX_MEM and self.EX_MEM.get("control", {}).get("RegWrite") == "1":
+           if self.EX_MEM.get("rd") == self.ID_EX.get("rs"):
+              ForwardA = "10"
+           if self.EX_MEM.get("rd") == self.ID_EX.get("rt"):
+              ForwardB = "10"
+
+        # MEM Hazard
+        if self.MEM_WB and self.MEM_WB.get("control", {}).get("RegWrite") == "1":
+           if self.MEM_WB.get("rd") == self.ID_EX.get("rs") and ForwardA != "10":
+              ForwardA = "01"
+           if self.MEM_WB.get("rd") == self.ID_EX.get("rt") and ForwardB != "10":
+              ForwardB = "01"
+
+        return ForwardA, ForwardB
+        
     def detect_hazard_lw_stall(self):
         """檢測lw的datahazard"""
         if self.ID_EX and self.ID_EX["op"] == "lw":
