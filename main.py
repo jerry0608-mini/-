@@ -42,7 +42,7 @@ def simulate_pipeline(instructions):
 
 def main():
     # 讀取輸入指令檔案
-    instructions = load_instructions("inputs/test5.txt")
+    instructions = load_instructions("inputs/test3.txt")
     print("Loaded Instructions:", instructions)
 
     # 執行管線模擬
