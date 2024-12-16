@@ -21,6 +21,11 @@ class Pipeline:
             print(f"Cycle {self.cycle + 1}: Fetching instruction: {instruction}")
         return instruction
 
+    def fetch_target(self, target_index):
+        """重新抓取目標指令"""
+        print(f"Fetching target instruction at index {target_index}")
+        # 模擬重新抓取邏輯 (實際指令存取需根據指令存儲結構實作)
+
     def decode(self, instruction):
         """模擬 ID 階段"""
         if not instruction:
@@ -57,11 +62,11 @@ class Pipeline:
                 offset = int(match.group(2))
                 base = int(match.group(3))
                 control_signals.update({
-            "ALUSrc": "1",
-            "MemRead": "1" if op == "lw" else "0",
-            "MemtoReg": "1" if op == "lw" else "0",
-            "RegWrite": "1" if op == "lw" else "0",
-            "MemWrite": "1" if op == "sw" else "0"
+                    "ALUSrc": "1",
+                    "MemRead": "1" if op == "lw" else "0",
+                    "MemtoReg": "1" if op == "lw" else "0",
+                    "RegWrite": "1" if op == "lw" else "0",
+                    "MemWrite": "1" if op == "sw" else "0"
                 })
                 print(f"Cycle {self.cycle + 1}: Decoding {op.upper()} -> reg: {reg}, offset: {offset}, base: {base}, Signals: {control_signals}")
                 return {"op": op, "reg": reg, "offset": offset, "base": base, "control": control_signals}
@@ -95,7 +100,17 @@ class Pipeline:
             rs_value = self.get_forwarded_value("A", decoded_instruction["rs"])
             rt_value = self.get_forwarded_value("B", decoded_instruction["rt"])
             taken = rs_value == rt_value
-            print(f"Cycle {self.cycle + 1}: Executing BEQ -> Taken: {taken}, Control Signals: {control}")
+
+            if taken:
+                print(f"Cycle {self.cycle + 1}: BEQ Taken -> Flushing pipeline and fetching target")
+                # 清空 IF/ID 寄存器 (flush pipeline)
+                self.IF_ID = None
+                # 更新 IF 階段去抓取目標指令
+                target_index = self.cycle + decoded_instruction["offset"]
+                self.fetch_target(target_index)
+            else:
+                print(f"Cycle {self.cycle + 1}: BEQ Not Taken -> Continuing pipeline")
+
             return {"op": op, "taken": taken, "control": control}
 
     def get_forwarded_value(self, path, reg_index):
@@ -136,35 +151,6 @@ class Pipeline:
             if self.MEM_WB and self.MEM_WB.get("rd") == decoded_instruction.get("reg") and self.ForwardB != "10":
                 self.ForwardB = "01"
 
-    def memory_access(self, executed_result):
-        """模擬 MEM 階段"""
-        if not executed_result:
-            return None
-
-        op = executed_result["op"]
-        control = executed_result["control"]
-        if op == "lw":
-            data = self.memory[executed_result["address"]]
-            print(f"Cycle {self.cycle + 1}: Memory Access LW -> Data: {data}, Control Signals: {control}")
-            return {"op": op, "data": data, "rd": executed_result["rd"], "control": control}
-        elif op == "sw":
-            self.memory[executed_result["address"]] = self.registers[executed_result["reg"]]
-            print(f"Cycle {self.cycle + 1}: Memory Access SW -> Memory[{executed_result['address']}] = {self.registers[executed_result['reg']]}, Control Signals: {control}")
-
-    def write_back(self, mem_result):
-        """模擬 WB 階段"""
-        if not mem_result:
-            return
-
-        op = mem_result["op"]
-        control = mem_result["control"]
-        if op in ["lw", "add", "sub"]:
-            result = mem_result.get("data", mem_result.get("result"))
-            self.registers[mem_result["rd"]] = result
-            print(f"Cycle {self.cycle + 1}: Write Back -> Register[{mem_result['rd']}] = {result}, Control Signals: {control}")
-        else:
-            print(f"Cycle {self.cycle + 1}: Write Back -> No Register Write, Control Signals: {control}")
-
     def step(self, instruction):
         """模擬一步 Pipeline"""
         if self.MEM_WB:
@@ -195,6 +181,35 @@ class Pipeline:
         self.cycle += 1
         self.print_pipeline_state()
 
+    def memory_access(self, executed_result):
+        """模擬 MEM 階段"""
+        if not executed_result:
+            return None
+
+        op = executed_result["op"]
+        control = executed_result["control"]
+        if op == "lw":
+            data = self.memory[executed_result["address"]]
+            print(f"Cycle {self.cycle + 1}: Memory Access LW -> Data: {data}, Control Signals: {control}")
+            return {"op": op, "data": data, "rd": executed_result["rd"], "control": control}
+        elif op == "sw":
+            self.memory[executed_result["address"]] = self.registers[executed_result["reg"]]
+            print(f"Cycle {self.cycle + 1}: Memory Access SW -> Memory[{executed_result['address']}] = {self.registers[executed_result['reg']]}, Control Signals: {control}")
+
+    def write_back(self, mem_result):
+        """模擬 WB 階段"""
+        if not mem_result:
+            return
+
+        op = mem_result["op"]
+        control = mem_result["control"]
+        if op in ["lw", "add", "sub"]:
+            result = mem_result.get("data", mem_result.get("result"))
+            self.registers[mem_result["rd"]] = result
+            print(f"Cycle {self.cycle + 1}: Write Back -> Register[{mem_result['rd']}] = {result}, Control Signals: {control}")
+        else:
+            print(f"Cycle {self.cycle + 1}: Write Back -> No Register Write, Control Signals: {control}")
+
     def print_pipeline_state(self):
         """打印每個 Cycle 中的 Pipeline 狀態，包括控制信號"""
         print(f"Cycle {self.cycle}:")
@@ -212,7 +227,6 @@ class Pipeline:
         else:
             print(f"  MEM/WB: {self.MEM_WB}")
 
-        # 增強輸出，處理管線暫停或清空的情況
         if self.ID_EX and self.ID_EX['control']['MemRead'] == '1' and self.ID_EX.get('reg'):
             print("  Pipeline Stalled: Data Hazard Detected")
         elif self.ID_EX and self.ID_EX['op'] == 'beq' and not self.EX_MEM:
