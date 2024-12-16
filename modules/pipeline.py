@@ -232,3 +232,13 @@ class Pipeline:
         elif self.ID_EX and self.ID_EX['op'] == 'beq' and not self.EX_MEM:
             print("  Pipeline Flushed: Control Hazard Detected")
         print()
+
+    def print_final_state(self):
+        """打印最終狀態"""
+        print("\nFinal Register Values:")
+        for i in range(32):
+            print(f"$ {i} = {self.registers[i]} ", end="")
+        print("\n\nFinal Memory Values:")
+        for i in range(32):
+            print(f"M[{i}] = {self.memory[i]} ", end="")
+        print(f"\n\nTotal Cycles: {self.cycle}")
