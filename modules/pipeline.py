@@ -1,5 +1,3 @@
-import re
-
 class Pipeline:
     def __init__(self):
         self.IF_ID = None
@@ -14,6 +12,7 @@ class Pipeline:
         self.cycle = 0
         self.ForwardA = "00"
         self.ForwardB = "00"
+        self.predict_taken = False  # 預測是否跳轉，預設為不跳轉
 
     def fetch(self, instruction):
         """模擬 IF 階段"""
@@ -38,6 +37,7 @@ class Pipeline:
             rt = int(parts[2][1:].replace(",", ""))
             offset = int(parts[3])
             control_signals.update({"Branch": "1", "ALUSrc": "0", "ALUOp": "01"})
+            self.predict_taken = False  # 預測 beq 不跳轉
             print(f"Cycle {self.cycle + 1}: Decoding BEQ -> rs: {rs}, rt: {rt}, offset: {offset}, Signals: {control_signals}")
             return {"op": op, "rs": rs, "rt": rt, "offset": offset, "control": control_signals}
 
@@ -96,74 +96,12 @@ class Pipeline:
             rt_value = self.get_forwarded_value("B", decoded_instruction["rt"])
             taken = rs_value == rt_value
             print(f"Cycle {self.cycle + 1}: Executing BEQ -> Taken: {taken}, Control Signals: {control}")
+            
+            # 檢查預測結果是否與實際結果匹配
+            if taken != self.predict_taken:
+                print(f"Cycle {self.cycle + 1}: Control Hazard Detected: Flushing Pipeline")
+                self.IF_ID = None  # 這裡抹掉錯誤的指令
             return {"op": op, "taken": taken, "control": control}
-
-    def get_forwarded_value(self, path, reg_index):
-        """根據 Forward 信號獲取暫存器值"""
-        if path == "A":
-            if self.ForwardA == "10":
-                return self.EX_MEM["result"]
-            elif self.ForwardA == "01":
-                return self.MEM_WB["result"]
-        elif path == "B":
-            if self.ForwardB == "10":
-                return self.EX_MEM["result"]
-            elif self.ForwardB == "01":
-                return self.MEM_WB["result"]
-        return self.registers[reg_index]
-
-    def detect_forwarding_signals(self, decoded_instruction):
-        """檢測 Forwarding 信號"""
-        self.ForwardA = "00"
-        self.ForwardB = "00"
-
-        # EX Hazard
-        if self.EX_MEM and self.EX_MEM.get("rd") == decoded_instruction.get("rs"):
-            self.ForwardA = "10"
-        if self.EX_MEM and self.EX_MEM.get("rd") == decoded_instruction.get("rt"):
-            self.ForwardB = "10"
-
-        # MEM Hazard
-        if self.MEM_WB and self.MEM_WB.get("rd") == decoded_instruction.get("rs") and self.ForwardA != "10":
-            self.ForwardA = "01"
-        if self.MEM_WB and self.MEM_WB.get("rd") == decoded_instruction.get("rt") and self.ForwardB != "10":
-            self.ForwardB = "01"
-
-        # SW Forwarding
-        if decoded_instruction["op"] == "sw":
-            if self.EX_MEM and self.EX_MEM.get("rd") == decoded_instruction.get("reg"):
-                self.ForwardB = "10"
-            if self.MEM_WB and self.MEM_WB.get("rd") == decoded_instruction.get("reg") and self.ForwardB != "10":
-                self.ForwardB = "01"
-
-    def memory_access(self, executed_result):
-        """模擬 MEM 階段"""
-        if not executed_result:
-            return None
-
-        op = executed_result["op"]
-        control = executed_result["control"]
-        if op == "lw":
-            data = self.memory[executed_result["address"]]
-            print(f"Cycle {self.cycle + 1}: Memory Access LW -> Data: {data}, Control Signals: {control}")
-            return {"op": op, "data": data, "rd": executed_result["rd"], "control": control}
-        elif op == "sw":
-            self.memory[executed_result["address"]] = self.registers[executed_result["reg"]]
-            print(f"Cycle {self.cycle + 1}: Memory Access SW -> Memory[{executed_result['address']}] = {self.registers[executed_result['reg']]}, Control Signals: {control}")
-
-    def write_back(self, mem_result):
-        """模擬 WB 階段"""
-        if not mem_result:
-            return
-
-        op = mem_result["op"]
-        control = mem_result["control"]
-        if op in ["lw", "add", "sub"]:
-            result = mem_result.get("data", mem_result.get("result"))
-            self.registers[mem_result["rd"]] = result
-            print(f"Cycle {self.cycle + 1}: Write Back -> Register[{mem_result['rd']}] = {result}, Control Signals: {control}")
-        else:
-            print(f"Cycle {self.cycle + 1}: Write Back -> No Register Write, Control Signals: {control}")
 
     def step(self, instruction):
         """模擬一步 Pipeline"""
@@ -172,19 +110,9 @@ class Pipeline:
         if self.EX_MEM:
             self.MEM_WB = self.memory_access(self.EX_MEM)
 
-        # LW Data Hazard Detection
-        if self.ID_EX and self.ID_EX["op"] == "lw":
-            if self.IF_ID:
-                parts = self.IF_ID.split()
-                if len(parts) > 2:
-                    match = re.match(r'(\d+)\(\$(\d+)\)', parts[2])
-                    if match:
-                        base = int(match.group(2))
-                        if self.ID_EX["reg"] == base:
-                            print(f"Cycle {self.cycle + 1}: Data Hazard Detected -> Stalling Pipeline")
-                            self.EX_MEM = None
-                            self.MEM_WB = None
-                            return
+        # 假設要處理控制 Hazard
+        if self.IF_ID and self.IF_ID.split()[0] == "beq" and self.EX_MEM and self.EX_MEM.get("taken") == False:
+            self.IF_ID = None  # 清空錯誤的指令
 
         if self.ID_EX:
             self.EX_MEM = self.execute(self.ID_EX)
@@ -194,27 +122,3 @@ class Pipeline:
 
         self.cycle += 1
         self.print_pipeline_state()
-
-    def print_pipeline_state(self):
-        """打印每個 Cycle 中的 Pipeline 狀態，包括控制信號"""
-        print(f"Cycle {self.cycle}:")
-        print(f"  IF/ID: {self.IF_ID}")
-        if self.ID_EX:
-            print(f"  ID/EX: {self.ID_EX} | Signals: RegDst={self.ID_EX['control']['RegDst']}, ALUSrc={self.ID_EX['control']['ALUSrc']}, Branch={self.ID_EX['control']['Branch']}, MemRead={self.ID_EX['control']['MemRead']}, MemWrite={self.ID_EX['control']['MemWrite']}, RegWrite={self.ID_EX['control']['RegWrite']}, MemToReg={self.ID_EX['control']['MemtoReg']}")
-        else:
-            print(f"  ID/EX: {self.ID_EX}")
-        if self.EX_MEM:
-            print(f"  EX/MEM: {self.EX_MEM} | Signals: ALUResult=X, Zero=X, Branch={self.EX_MEM['control']['Branch']}, MemRead={self.EX_MEM['control']['MemRead']}, MemWrite={self.EX_MEM['control']['MemWrite']}")
-        else:
-            print(f"  EX/MEM: {self.EX_MEM}")
-        if self.MEM_WB:
-            print(f"  MEM/WB: {self.MEM_WB} | Signals: RegWrite={self.MEM_WB['control']['RegWrite']}, MemToReg={self.MEM_WB['control']['MemtoReg']}")
-        else:
-            print(f"  MEM/WB: {self.MEM_WB}")
-
-        # 增強輸出，處理管線暫停或清空的情況
-        if self.ID_EX and self.ID_EX['control']['MemRead'] == '1' and self.ID_EX.get('reg'):
-            print("  Pipeline Stalled: Data Hazard Detected")
-        elif self.ID_EX and self.ID_EX['op'] == 'beq' and not self.EX_MEM:
-            print("  Pipeline Flushed: Control Hazard Detected")
-        print()
