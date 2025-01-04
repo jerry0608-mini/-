@@ -42,15 +42,15 @@ def simulate_pipeline(instructions):
 
 def main():
     # 讀取輸入指令檔案
-    instructions = load_instructions("inputs/test3.txt")
+    instructions = load_instructions("inputs/test4.txt")
     print("Loaded Instructions:", instructions)
 
     # 執行管線模擬
     pipeline_results = simulate_pipeline(instructions)
 
     # 保存結果到檔案
-    save_output(pipeline_results, "outputs/result_test3.txt")
-    print("Results saved to outputs/result_test3.txt")
+    save_output(pipeline_results, "outputs/result_test4.txt")
+    print("Results saved to outputs/result_test4.txt")
 
 if __name__ == "__main__":
     main()
