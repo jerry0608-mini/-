@@ -49,8 +49,8 @@ def main():
     pipeline_results = simulate_pipeline(instructions)
 
     # 保存結果到檔案
-    save_output(pipeline_results, "outputs/result_test4.txt")
-    print("Results saved to outputs/result_test4.txt")
+    save_output(pipeline_results, "C:/Users/giant/OneDrive/Documents/GitHub/Final/outputs/result_test3.txt")
+    print("Results saved to outputs/result_test3.txt")
 
 if __name__ == "__main__":
     main()
