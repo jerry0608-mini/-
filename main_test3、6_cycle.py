@@ -7,11 +7,20 @@ def simulate_pipeline(instructions):
     index = 0
 
     while any([pipeline.IF_ID, pipeline.ID_EX, pipeline.EX_MEM, pipeline.MEM_WB]) or index < len(instructions):
+        if pipeline.simulate_pipeline_index!=index:
+            index=pipeline.simulate_pipeline_index
+
         if not pipeline.detect_hazard_lw_stall() and index < len(instructions):
             current_instruction = instructions[index]
             index += 1
+            pipeline.simulate_pipeline_index=index
         else:
-            current_instruction = None  # 插入 NOP
+            if index < len(instructions):
+               current_instruction = instructions[index]
+            else:
+               current_instruction = None
+            #current_instruction = None
+
         pipeline.step(current_instruction)
     # 記錄結果
         if current_instruction:
@@ -38,8 +47,8 @@ def main():
     pipeline_results = simulate_pipeline(instructions)
 
     # 保存結果到檔案
-    save_output(pipeline_results, "outputs/result_test3.txt")
-    print("Results saved to outputs/result_test3.txt")
+    save_output(pipeline_results, "outputs/result_test4.txt")
+    print("Results saved to outputs/result_test4.txt")
 
 if __name__ == "__main__":
     main()
