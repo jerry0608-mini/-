@@ -2,7 +2,7 @@ from modules.io_handler import load_instructions, save_output
 from modules.pipeline import Pipeline
 
 def simulate_pipeline(instructions):
-    pipeline = Pipeline()
+    pipeline = Pipeline(input_number)
     index = 0
 
     while any([pipeline.IF_ID, pipeline.ID_EX, pipeline.EX_MEM, pipeline.MEM_WB]) or index < len(instructions):
@@ -34,14 +34,17 @@ def simulate_pipeline(instructions):
 
 def main():
     # 讀取輸入指令檔案
-    instructions = load_instructions("inputs/test6.txt")
+
+    instructions = load_instructions("inputs/test"+input_number+".txt")
     print("Loaded Instructions:", instructions)
     # 執行管線模擬
     pipeline_results = simulate_pipeline(instructions)
 
     # 保存結果到檔案
-    save_output(pipeline_results, "outputs/result_test6.txt")
-    print("Results saved to outputs/result_test6.txt")
+    save_output(pipeline_results, "outputs/result_test"+input_number+".txt")
+    print("Results saved to outputs/result_test"+input_number+".txt")
 
 if __name__ == "__main__":
+    input_number=input('請輸入測資號碼')
+    pipeline = Pipeline(input_number)
     main()
