@@ -1,3 +1,4 @@
+'''
 import re
 from modules.io_handler import load_instructions
 
@@ -391,3 +392,4 @@ class Pipeline:
         for i in range(32):
             print(f"M[{i}] = {self.memory[i]} ", end="")
         print(f"\n\nTotal Cycles: {self.cycle}")
+'''
