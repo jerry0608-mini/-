@@ -1,3 +1,4 @@
+'''
 from modules.io_handler import load_instructions, save_output
 from modules.pipeline import Pipeline
 
@@ -52,3 +53,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
