@@ -135,7 +135,7 @@ class Pipeline:
             return {"op": op, "taken": taken, "control": control}
 
         elif op in ["lw", "sw"]:
-            address = self.registers[decoded_instruction["base"]] + decoded_instruction["offset"]
+            address = self.registers[decoded_instruction["base"]] +  (decoded_instruction["offset"]//4)
             print(f"Cycle {self.cycle + 1}: Executing {op.upper()} -> Address: {address}, Control Signals: {control}")
             return {"op": op, "address": address, "reg": decoded_instruction.get("reg"), "control": control}
         
