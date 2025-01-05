@@ -2,7 +2,7 @@ import re
 from modules.io_handler import load_instructions, save_output
 
 class Pipeline:
-    def __init__(self):
+    def __init__(self,input_number):
         self.IF_ID = None
         self.ID_EX = None
         self.EX_MEM = None
@@ -21,7 +21,7 @@ class Pipeline:
         self.stall_counter=0
         
         self.simulate_pipeline_index=0
-        self.beq_taken_instructions = load_instructions("inputs/test6.txt")
+        self.beq_taken_instructions = load_instructions(f"inputs/test{input_number}.txt")
         self.outputcycle=1
         self.output = []  # 用來記錄每個 cycle 的輸出
 
